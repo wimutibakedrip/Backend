@@ -320,7 +320,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
 def get_all_orders(
     selected_date: Optional[str] = Query(None, description="รูปแบบวันที่: YYYY-MM-DD"), 
     db: Session = Depends(get_db)):
-
+ 
     if selected_date:
         target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
     else:
