@@ -22,6 +22,13 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Wimuti Bakery API")
 
+origins =[
+    "http://localhost:3000",
+    "http://127.0.0.1:8000",
+    "https://bakery-frontend-wimuti.vercel.app",
+    "*"
+]
+
 # ปลดล็อก CORS เพื่อให้ React สามารถยิง API มาหา FastAPI ได้
 app.add_middleware(
     CORSMiddleware,
