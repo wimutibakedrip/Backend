@@ -40,7 +40,7 @@ app.add_middleware(
 # ----------------------------------------------------
 # เปิดให้ภายนอกสามารถเข้ามาดึงรูปภาพในโฟลเดอร์ uploads ไปแสดงผลได้
 UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ตรวจสอบคำสั่ง app.mount ให้พาร์ทและชื่อไดเรกทอรีตรงกันเป๊ะๆ
 app.mount("/static-images", StaticFiles(directory=UPLOAD_DIR), name="static-images")
 # ----------------------------------------------------
@@ -408,7 +408,6 @@ def get_orders(db: Session = Depends(get_db)):
 # ====================================================
 # ส่วนที่เพิ่มใหม่: SALE MANAGEMENT SYSTEM (สรุปรายงานยอดขาย)
 # ====================================================
-
 # API สำหรับฝั่ง ADMIN: รายงานยอดขายรวมและสินค้าขายดี (Dashboard Metrics)
 @app.get("/api/sales/summary")
 def get_sales_summary(db: Session = Depends(get_db)):
@@ -428,7 +427,6 @@ def get_sales_summary(db: Session = Depends(get_db)):
         status_distribution[status_str] = count
     
     # จัดอันดับขนม/เครื่องดื่มขายดี 5 อันดับแรก (Top Selling Products)
-    # ปรับปรุงการดึงชื่อสินค้าและจำนวนชิ้นให้สอดรับกับสเตตดั้งเดิมของฟรอนต์เอนด์
     top_items = db.query(
         models.OrderItemModel.product_id,
         func.sum(models.OrderItemModel.quantity).label("total_qty")
