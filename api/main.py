@@ -1,11 +1,11 @@
 # main.py 
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Any
+from typing import List, Any, Optional
 from pydantic import BaseModel
 
 import os
@@ -317,16 +317,25 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
 
 # ฟังก์ชันดึงออเดอร์คิวครัว
 @app.get("/api/orders")
-def get_all_orders(db: Session = Depends(get_db)):
+def get_all_orders(
+    selected_date: Optional[str] = Query(None, description="รูปแบบวันที่: YYYY-MM-DD"), 
+    db: Session = Depends(get_db)):
+
+    if selected_date:
+        target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+    else:
+        target_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+
     orders = db.query(models.OrderModel)\
-               .options(
-                   joinedload(models.OrderModel.items)
-                   .joinedload(models.OrderItemModel.product)
-               )\
-               .order_by(models.OrderModel.created_at.desc())\
-               .all()
+                .options(
+                    joinedload(models.OrderModel.items)
+                    .joinedload(models.OrderItemModel.product)
+                )\
+                .filter(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date)\
+                .order_by(models.OrderModel.created_at.desc())\
+                .all()
                
-    # 💡 ปรับการ Encode: บังคับแกะโครงสร้าง Object ความสัมพันธ์เชิงลึก (Deep Relationship) 
+    # ปรับการ Encode: บังคับแกะโครงสร้าง Object ความสัมพันธ์เชิงลึก (Deep Relationship) 
     # ออกมาเป็น Python Dictionary ดิบ ก่อนแปลงผ่าน jsonable_encoder ป้องกันข้อมูลตารางลูกหาย
     result = []
     for order in orders:
@@ -410,15 +419,28 @@ def get_orders(db: Session = Depends(get_db)):
 # ====================================================
 # API สำหรับฝั่ง ADMIN: รายงานยอดขายรวมและสินค้าขายดี (Dashboard Metrics)
 @app.get("/api/sales/summary")
-def get_sales_summary(db: Session = Depends(get_db)):
+def get_sales_summary(
+    selected_date: Optional[str] = Query(None, description="รูปแบบวันที่: YYYY-MM-DD"), 
+    db: Session = Depends(get_db)):
+ 
+    if selected_date:
+        target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+    else:
+        target_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+
+    # ตั้งเงื่อนไขกรองวันที่โดยแปลงเขตเวลาของฐานข้อมูล (UTC) ให้สัมพันธ์เป็นเวลาไทยปัจจุบัน
+    date_filter = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date
+
     # คำนวณรายได้ทั้งหมด (คิดจากทุกออเดอร์ที่มีการจ่ายเงินสำเร็จ)
     # ใช้ func.coalesce ป้องกันไม่ให้ฐานข้อมูลคืนค่าเป็น NULL กรณีที่ร้านยังไม่มีออเดอร์แรก
     total_revenue = db.query(func.sum(models.OrderModel.grandtotal_price))\
+                      .filter(date_filter)\
                       .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
                       .scalar() or 0.0
                       
     # นับสัดส่วนสถานะของออเดอร์ในคิวห้องครัวปัจจุบัน
     status_counts = db.query(models.OrderModel.status, func.count(models.OrderModel.id))\
+                      .filter(date_filter)\
                       .group_by(models.OrderModel.status).all()
                       
     status_distribution = {}
@@ -430,7 +452,9 @@ def get_sales_summary(db: Session = Depends(get_db)):
     top_items = db.query(
         models.OrderItemModel.product_id,
         func.sum(models.OrderItemModel.quantity).label("total_qty")
-    ).join(models.OrderModel).filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
+    ).join(models.OrderModel)\
+     .filter(date_filter)\
+     .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
      .group_by(models.OrderItemModel.product_id)\
      .order_by(func.sum(models.OrderItemModel.quantity).desc()).limit(5).all()
      
