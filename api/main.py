@@ -122,7 +122,7 @@ async def create_product(
         raise HTTPException(status_code=400, detail=f"เกิดข้อผิดพลาด: {str(e)}")
 
     from fastapi.encoders import jsonable_encoder
-    return {"message": "เพิ่มสินค้าเรียบร้อยแล้ว", "data": jsonable_encoder(db_product)}
+    return jsonable_encoder(db_product)
    
 # ----------------------------------------------------
 # API สำหรับฝั่ง ADMIN: แก้ไขข้อมูลเมนูและราคา PUT (ปรับปรุงการรับข้อมูลจาก React)
