@@ -210,7 +210,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"ไม่สามารถลบข้อมูลได้เนื่องจาก: {str(e)}"
         )
-    return {"message": "ลบเมนูเบเกอรี่เรียบร้อยแล้ว"}
+    return {}
 
 # ----------------------------------------------------
 # API สำหรับฝั่ง ADMIN: สลับสถานะ พร้อมขาย หรือ ยกเลิก PATCH
@@ -312,7 +312,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการบันทึกออเดอร์: {str(e)}")
         
     from fastapi.encoders import jsonable_encoder
-    return {"message": "ส่งรายการสั่งซื้อสำเร็จ", "order_id": new_order.id, "data": jsonable_encoder(new_order)}
+    return jsonable_encoder(new_order)
 
 
 # ฟังก์ชันดึงออเดอร์คิวครัว
