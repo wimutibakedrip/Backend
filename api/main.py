@@ -334,7 +334,7 @@ def get_all_orders(
                     joinedload(models.OrderModel.items)
                     .joinedload(models.OrderItemModel.product)
                 )\
-                .filter(date_filter)\
+                .filter(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date)\
                 .order_by(models.OrderModel.created_at.desc())\
                 .all()
                
