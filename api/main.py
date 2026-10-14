@@ -68,12 +68,12 @@ def get_all_products(db: Session = Depends(get_db)):
     products = db.query(models.ProductModel).all()
     from fastapi.encoders import jsonable_encoder
     
-    # 💡 ใช้ jsonable_encoder แปลงตรงๆ ไม่ผ่าน response_model 
+    # ใช้ jsonable_encoder แปลงตรงๆ ไม่ผ่าน response_model 
     # เพื่อป้องกันไม่ให้ Pydantic บล็อกข้อมูลกรณีที่มีค่า NULL อยู่ใน PostgreSQL ข้อมูลเก่าจะโชว์ปกติทันที
     return jsonable_encoder(products)
 
 # ----------------------------------------------------
-# 🔑 API สำหรับฝั่ง ADMIN: เพิ่มเมนูขนมใหม่ POST พร้อมอัปโหลดรูป
+# API สำหรับฝั่ง ADMIN: เพิ่มเมนูขนมใหม่ POST พร้อมอัปโหลดรูป
 # ----------------------------------------------------
 @app.post("/api/products")
 async def create_product(
@@ -125,7 +125,7 @@ async def create_product(
     return {"message": "เพิ่มสินค้าเรียบร้อยแล้ว", "data": jsonable_encoder(db_product)}
    
 # ----------------------------------------------------
-# 🔑 API สำหรับฝั่ง ADMIN: แก้ไขข้อมูลเมนูและราคา PUT (ปรับปรุงการรับข้อมูลจาก React)
+# API สำหรับฝั่ง ADMIN: แก้ไขข้อมูลเมนูและราคา PUT (ปรับปรุงการรับข้อมูลจาก React)
 # ----------------------------------------------------
 @app.put("/api/products/{product_id}")
 async def update_product(
@@ -193,7 +193,7 @@ async def update_product(
     return jsonable_encoder(db_product)
 
 # ----------------------------------------------------
-# 🔑 API สำหรับฝั่ง ADMIN: ลบเมนูออกจากระบบ DELETE
+# API สำหรับฝั่ง ADMIN: ลบเมนูออกจากระบบ DELETE
 # ----------------------------------------------------
 @app.delete("/api/products/{product_id}", status_code=status.HTTP_200_OK)
 def delete_product(product_id: int, db: Session = Depends(get_db)):
@@ -213,7 +213,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     return {"message": "ลบเมนูเบเกอรี่เรียบร้อยแล้ว"}
 
 # ----------------------------------------------------
-# 🔑 API สำหรับฝั่ง ADMIN: สลับสถานะ พร้อมขาย หรือ ยกเลิก PATCH
+# API สำหรับฝั่ง ADMIN: สลับสถานะ พร้อมขาย หรือ ยกเลิก PATCH
 # ----------------------------------------------------
 @app.patch("/api/products/{product_id}/toggle-status")
 def toggle_product_status(product_id: int, db: Session = Depends(get_db)):
@@ -324,14 +324,17 @@ def get_all_orders(
     if selected_date:
         target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
     else:
-        target_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+        target_date = datetime.datetime.strptime(datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date(), "%Y-%m-%d")
+
+    # ตั้งเงื่อนไขกรองวันที่โดยแปลงเขตเวลาของฐานข้อมูล (UTC) ให้สัมพันธ์เป็นเวลาไทยปัจจุบัน
+    date_filter = datetime.datetime.strptime(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)), "%Y-%m-%d") == target_date
 
     orders = db.query(models.OrderModel)\
                 .options(
                     joinedload(models.OrderModel.items)
                     .joinedload(models.OrderItemModel.product)
                 )\
-                .filter(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date)\
+                .filter(date_filter)\
                 .order_by(models.OrderModel.created_at.desc())\
                 .all()
                
