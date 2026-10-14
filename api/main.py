@@ -327,7 +327,7 @@ def get_all_orders(
         target_date = datetime.datetime.strptime(datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date(), "%Y-%m-%d")
 
     # ตั้งเงื่อนไขกรองวันที่โดยแปลงเขตเวลาของฐานข้อมูล (UTC) ให้สัมพันธ์เป็นเวลาไทยปัจจุบัน
-    date_filter = datetime.datetime.strptime(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)), "%Y-%m-%d") == target_date
+    date_filter = datetime.datetime.strptime(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)), "%Y-%m-%d") == "2026-10-12"
 
     orders = db.query(models.OrderModel)\
                 .options(
