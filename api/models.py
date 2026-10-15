@@ -41,8 +41,8 @@ class OrderModel(Base):
     discount_price = Column(Float, nullable=False, default=0.0)
     grandtotal_price = Column(Float, nullable=False, default=0.0)
     sstatus = Column(Enum(OrderStatus, native_enum=False), default=OrderStatus.PENDING)
-    notes = Column(Text, nullable=True) 
     payment_method = Column(String, nullable=False, default="เงินสด")
+    notes = Column(Text, nullable=True)     
     created_at = Column(DateTime(timezone=True), default=get_thailand_time)
 
     # ความสัมพันธ์เชื่อมต่อไปหา OrderItemModel
