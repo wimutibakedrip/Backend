@@ -391,7 +391,7 @@ def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Se
     if current_status_str in ["สำเร็จ", "ยกเลิก"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"ไม่สามารถเปลี่ยนสถานะได้เนื่องจากออเดอร์นี้ดำเนินรายการ '{current_status_str}' ไปเสร็จสิ้นแล้ว"
+            detail=f"ไม่สามารถเปลี่ยนสถานะได้ออเดอร์นี้ '{current_status_str}' เสร็จสิ้นแล้ว"
         )
     
     # แปลงจาก String หน้าฟรอนต์เอนด์ไปเป็นรูปแบบ Enum Object ที่ PostgreSQL รองรับ
