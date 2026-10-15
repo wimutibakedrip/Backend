@@ -467,7 +467,21 @@ def get_sales_summary(
                       .filter(date_filter)\
                       .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
                       .scalar() or 0.0
-                      
+                       
+    # นับรายได้เงินสด
+    total_cash = db.query(func.sum(models.OrderModel.grandtotal_price))\
+                      .filter(date_filter)\
+                      .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
+                      .filter(models.OrderModel.payment_method == "เงินสด")\
+                      .group_by(models.OrderModel.payment_method)\
+                      .scalar() or 0.0 
+    # นับรายได้เงินโอน
+    total_transfer = db.query(func.sum(models.OrderModel.grandtotal_price))\
+                      .filter(date_filter)\
+                      .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
+                      .filter(models.OrderModel.payment_method == "โอน")\
+                      .scalar() or 0.0
+          
     # นับสัดส่วนสถานะของออเดอร์ในคิวห้องครัวปัจจุบัน
     status_counts = db.query(models.OrderModel.status, func.count(models.OrderModel.id))\
                       .filter(date_filter)\
@@ -500,6 +514,8 @@ def get_sales_summary(
 
     return {
         "total_revenue": float(total_revenue),
+        "total_cash": float(total_cash),
+        "total_transfer": float(total_transfer),
         "status_distribution": status_distribution,
         "top_products": top_products_list
     }
