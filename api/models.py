@@ -29,6 +29,10 @@ class OrderStatus(str, enum.Enum):
     COMPLETED = "สำเร็จ"
     CANCELLED = "ยกเลิก"
 
+class OrderPayment(str, enum.Enum):
+    CASH = "เงินสด"
+    TRANSFER = "โอน"
+
 def get_thailand_time():
     return datetime.datetime.now(ZoneInfo("Asia/Bangkok"))
 

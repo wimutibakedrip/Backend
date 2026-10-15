@@ -472,14 +472,13 @@ def get_sales_summary(
     total_cash = db.query(func.sum(models.OrderModel.grandtotal_price))\
                       .filter(date_filter)\
                       .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
-                      .filter(models.OrderModel.payment_method == "เงินสด")\
-                      .group_by(models.OrderModel.payment_method)\
+                      .filter(models.OrderModel.payment_method == models.OrderPayment.CASH)\
                       .scalar() or 0.0 
     # นับรายได้เงินโอน
     total_transfer = db.query(func.sum(models.OrderModel.grandtotal_price))\
                       .filter(date_filter)\
                       .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
-                      .filter(models.OrderModel.payment_method == "โอน")\
+                      .filter(models.OrderModel.payment_method ==  models.OrderPayment.TRANSFER)\
                       .scalar() or 0.0
           
     # นับสัดส่วนสถานะของออเดอร์ในคิวห้องครัวปัจจุบัน
