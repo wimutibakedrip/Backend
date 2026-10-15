@@ -374,24 +374,46 @@ def get_all_orders(
     from fastapi.encoders import jsonable_encoder
     return jsonable_encoder(result)
 
-
-# API สำหรับฝั่ง ADMIN: อัปเดตสถานะออเดอร์ (เช่น เปลี่ยนจาก รอดำเนินการ -> กำลังปรุง/อบ)
+# ====================================================
+# อัปเดตสถานะออเดอร์ (เช่น เปลี่ยนจาก รอดำเนินการ -> กำลังปรุง/อบ) และถ้ายกเลิกต้องคืนค่าไปยังสต๊อก
+# ====================================================
 @app.put("/api/orders/{order_id}/status")
 def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Session = Depends(get_db)):
     order = db.query(models.OrderModel).filter(models.OrderModel.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="ไม่พบรายการออเดอร์นี้ในคิวห้องครัว")
+    # ====================================================
+    # ล็อกไม่ให้แก้ไขหากสถานะปัจจุบันคือ "สำเร็จ" หรือ "ยกเลิก"
+    # ====================================================
+    # ดึงค่า string จากสถานะปัจจุบันในฐานข้อมูลขึ้นมาเช็ค
+    current_status_str = order.status.value if hasattr(order.status, 'value') else str(order.status)
     
-    # ดักตรรกะแปลงจาก String หน้าฟรอนต์เอนด์ไปเป็นรูปแบบ Enum Object ที่ PostgreSQL รองรับ
+    if current_status_str in ["สำเร็จ", "ยกเลิก"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"ไม่สามารถเปลี่ยนสถานะได้เนื่องจากออเดอร์นี้ดำเนินรายการ '{current_status_str}' ไปเสร็จสิ้นแล้ว"
+        )
+    
+    # แปลงจาก String หน้าฟรอนต์เอนด์ไปเป็นรูปแบบ Enum Object ที่ PostgreSQL รองรับ
     matched_status = None
     for enum_item in models.OrderStatus:
         if enum_item.value == request.status:
             matched_status = enum_item
-            break
-            
+            break           
     if not matched_status:
         raise HTTPException(status_code=422, detail=f"สถานะ '{request.status}' ไม่สอดคล้องกับระเบียบในระบบร้าน")
-        
+
+    # ====================================================
+    # ส่วนที่เพิ่มใหม่: ตรวจสอบการคืนสต็อกเมื่อสถานะใหม่เป็น "ยกเลิก"
+    # ====================================================
+    # ตรวจสอบว่าสถานะใหม่คือ "ยกเลิก" และสถานะเดิมในระบบยังไม่เคยเป็น "ยกเลิก" มาก่อน
+    if (request.status == "ยกเลิก" or matched_status == models.OrderStatus.CANCELLED) and order.status != matched_status:
+        # วนลูปรายการสินค้าทั้งหมดในออเดอร์นี้เพื่อคืนค่า qty (quantity) กลับไปที่สต็อกสินค้า (pieces)
+        for item in order.items:
+            product = db.query(models.ProductModel).filter(models.ProductModel.id == item.product_id).first()
+            if product:
+                product.pieces += item.quantity  # คืนค่าจำนวนสินค้ากลับเข้าคลัง
+            
     order.status = matched_status
     try:
         db.commit()
@@ -399,10 +421,10 @@ def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Se
         db.rollback()
         raise HTTPException(status_code=400, detail=f"ไม่สามารถเปลี่ยนสถานะได้: {str(e)}")
         
-    return {"message": "อัปเดตคิวขนมเรียบร้อย", "new_status": order.status.value}
+    return {}
 
 # ====================================================
-# ส่วนที่เพิ่มใหม่: Order Details (Popup Windows)
+# ส่วนที่เพิ่มใหม่: Order Details (Popup Windows) return {"message": "อัปเดตคิวขนมเรียบร้อย", "new_status": order.status.value}
 # ====================================================
 @app.get("/api/orders")
 def get_orders(db: Session = Depends(get_db)):
