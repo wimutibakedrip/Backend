@@ -1,5 +1,5 @@
 # orders.py
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, DateTime
 from pydantic import BaseModel
 from .database import Base
 

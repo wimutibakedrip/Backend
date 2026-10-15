@@ -286,13 +286,14 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
         )
         order_items_to_add.append(order_item)
 
-    # 2. คำนวณยอดเงินสุทธิสุทธิ (Grand Total)
+    # คำนวณยอดเงินสุทธิสุทธิ (Grand Total)
     discount_amount = request.discount_price
     grandtotal_price = subtotal_price - discount_amount
     if grandtotal_price < 0: 
         grandtotal_price = 0.0 # ป้องกันบิลติดลบกรณีใส่ส่วนลดเกินราคาจริง
 
-    # 3. สร้างออเดอร์หลักบันทึกลง PostgreSQL
+    # สร้างออเดอร์หลักบันทึกลง PostgreSQL
+    thailand_now = datetime.datetime.now(ZoneInfo("Asia/Bangkok"))
     new_order = models.OrderModel(
         customer_name=request.customer_name,
         subtotal_price=subtotal_price,
@@ -300,6 +301,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
         grandtotal_price=grandtotal_price,
         status=models.OrderStatus.PENDING, # ใช้ Enum จาก models.py ดักค่าเริ่มต้น
         notes=request.notes,
+        created_at=thailand_now,
         items=order_items_to_add
     )
     
