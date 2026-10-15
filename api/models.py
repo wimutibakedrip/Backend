@@ -40,12 +40,16 @@ class OrderModel(Base):
     subtotal_price = Column(Float, nullable=False, default=0.0)
     discount_price = Column(Float, nullable=False, default=0.0)
     grandtotal_price = Column(Float, nullable=False, default=0.0)
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    sstatus = Column(Enum(OrderStatus, native_enum=False), default=OrderStatus.PENDING)
     notes = Column(Text, nullable=True) 
+    payment_method = Column(String, nullable=False, default="เงินสด")
     created_at = Column(DateTime(timezone=True), default=get_thailand_time)
 
     # ความสัมพันธ์เชื่อมต่อไปหา OrderItemModel
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
+
+    #ALTER TABLE orders ALTER COLUMN created_at TYPE timestamp with time zone;
+    #กรณีฟิลย์ created_at ไม่เก็บวันที่เป็น เวลาไทยต้องใช้คำสั่งนี้ ที่ SQL Editer
 
 class OrderItemModel(Base):
     __tablename__ = "order_items"

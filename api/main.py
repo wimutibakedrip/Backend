@@ -245,6 +245,7 @@ class OrderCreateRequest(BaseModel):
     customer_name: str = ""
     notes: str = ""    
     discount_price: float = 0.0
+    payment_method: str = "เงินสด"
 
 class OrderStatusUpdateRequest(BaseModel):
     status: str
@@ -294,6 +295,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
 
     # สร้างออเดอร์หลักบันทึกลง PostgreSQL
     thailand_now = datetime.datetime.now(ZoneInfo("Asia/Bangkok"))
+
     new_order = models.OrderModel(
         customer_name=request.customer_name,
         subtotal_price=subtotal_price,
@@ -301,6 +303,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
         grandtotal_price=grandtotal_price,
         status=models.OrderStatus.PENDING, # ใช้ Enum จาก models.py ดักค่าเริ่มต้น
         notes=request.notes,
+        payment_method=request.payment_method,
         created_at=thailand_now,
         items=order_items_to_add
     )
@@ -352,6 +355,7 @@ def get_all_orders(
             "grandtotal_price": order.grandtotal_price,
             "status": order.status.value if hasattr(order.status, 'value') else order.status,
             "notes": order.notes,
+            "payment_method": order.payment_method, 
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "items": []  # สร้างอาเรย์รองรับรายการตารางลูก
         }
@@ -383,7 +387,7 @@ def get_all_orders(
 def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Session = Depends(get_db)):
     order = db.query(models.OrderModel).filter(models.OrderModel.id == order_id).first()
     if not order:
-        raise HTTPException(status_code=404, detail="ไม่พบรายการออเดอร์นี้ในคิวห้องครัว")
+        raise HTTPException(status_code=404, detail="ไม่พบรายการออเดอร์นี้ในคิว")
     # ====================================================
     # ล็อกไม่ให้แก้ไขหากสถานะปัจจุบันคือ "สำเร็จ" หรือ "ยกเลิก"
     # ====================================================
@@ -393,7 +397,7 @@ def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Se
     if current_status_str in ["สำเร็จ", "ยกเลิก"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"ไม่สามารถเปลี่ยนสถานะได้ออเดอร์นี้ '{current_status_str}' เสร็จสิ้นแล้ว"
+            detail=f"ไม่สามารถเปลี่ยนสถานะได้เพราะออเดอร์นี้ '{current_status_str}' แล้ว"
         )
     
     # แปลงจาก String หน้าฟรอนต์เอนด์ไปเป็นรูปแบบ Enum Object ที่ PostgreSQL รองรับ
@@ -421,8 +425,7 @@ def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Se
         db.commit()
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"ไม่สามารถเปลี่ยนสถานะได้: {str(e)}")
-        
+        raise HTTPException(status_code=400, detail=f"ไม่สามารถเปลี่ยนสถานะได้: {str(e)}")        
     return {}
 
 # ====================================================
