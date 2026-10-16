@@ -24,7 +24,7 @@ app = FastAPI(title="Wimuti Bakery API")
 
 origins =[
     "http://localhost:5173",
-    "https://bakery-frontend-wimuti.vercel.app/",
+    "https://wimuti.vercel.app/",
     "*"
 ]
 
