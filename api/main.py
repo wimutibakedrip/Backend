@@ -245,7 +245,7 @@ class OrderCreateRequest(BaseModel):
     customer_name: str = ""
     notes: str = ""    
     discount_price: float = 0.0
-    payment_method: str = "เงินสด"
+    payment_method: str = "โอน"
 
 class OrderStatusUpdateRequest(BaseModel):
     status: str
