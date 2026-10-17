@@ -340,6 +340,7 @@ def get_all_orders(
                     .joinedload(models.OrderItemModel.product)
                 )\
                 .filter(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date)\
+                .filter(models.OrderModel.status != models.OrderStatus.CANCELLED)\
                 .order_by(models.OrderModel.created_at.desc())\
                 .all()
                
