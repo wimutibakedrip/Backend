@@ -519,3 +519,84 @@ def get_sales_summary(
         "status_distribution": status_distribution,
         "top_products": top_products_list
     }
+
+@app.put("/orders/{order_id}")
+def update_existing_order(order_id: int, request: OrderCreateRequest, db: Session = Depends(get_db)):
+    # 1. ตรวจหาออเดอร์เดิมในฐานข้อมูล
+    order = db.query(models.OrderModel).filter(models.OrderModel.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการออเดอร์ใบนี้ในระบบ")
+
+    # บล็อกความปลอดภัยห้ามแก้ไขบิลถ้าห้องครัวทำสำเร็จหรือกดยกเลิกไปก่อนหน้าแล้ว
+    current_status_str = order.status.value if hasattr(order.status, 'value') else str(order.status)
+    if current_status_str in ["สำเร็จ", "ยกเลิก"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"ไม่สามารถแก้ไขได้เนื่องจากออเดอร์นี้อยู่ในสถานะ '{current_status_str}' แล้ว"
+        )
+
+    # 2. ดึงรายการสินค้าชุดเดิมที่เคยสั่งซื้อ คืนกลับไปเข้าสต็อกคลัง (ฟิลด์ pieces) ของร้านก่อน
+    for old_item in order.items:
+        product = db.query(models.ProductModel).filter(models.ProductModel.id == old_item.product_id).first()
+        if product:
+            product.pieces += old_item.quantity
+
+    # 3. ล้างแถวข้อมูลชุดเก่าออกจากตารางบันทึกสินค้าบิลย่อย (Order Items) ของออเดอร์นี้
+    db.query(models.OrderItemModel).filter(models.OrderItemModel.order_id == order_id).delete()
+
+    # 4. วนลูปคำนวณราคากลุ่มสินค้าชุดใหม่ที่พึ่งกดยืนยันมา พร้อมทำการหักคลังสต็อกรอบใหม่จริง
+    subtotal_price = 0.0
+    order_items_to_add = []
+
+    for req_item in request.items:
+        product = db.query(models.ProductModel).filter(models.ProductModel.id == req_item.product_id).first()
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"ไม่พบสินค้าไอดี #{req_item.product_id} ในระบบ"
+            )
+            
+        # ตรวจสอบว่าคลังพอไหม (เช็คหลังจากเอาของเก่ามารวมคืนให้แล้วในข้อ 2)
+        if product.pieces < req_item.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"สินค้า '{product.name}' มีจำนวนสต็อกไม่เพียงพอต่อการแก้ไข (เหลือ {product.pieces} ชิ้น)"
+            )
+            
+        item_total_price = product.price * req_item.quantity
+        subtotal_price += item_total_price
+        product.pieces -= req_item.quantity
+        
+        # แนบรายการสินค้าชุดใหม่ผูกเข้าตารางเชื่อมรหัสออเดอร์ตัวเดิม
+        order_item = models.OrderItemModel(
+            order_id=order.id,
+            product_id=product.id,
+            quantity=req_item.quantity,
+            price=product.price
+        )
+        order_items_to_add.append(order_item)
+
+    # คำนวณยอดรวมสุทธิและส่วนลดบิลใบเดิมรอบล่าสุด
+    discount_amount = request.discount_price
+    grandtotal_price = subtotal_price - discount_amount
+    if grandtotal_price < 0: 
+        grandtotal_price = 0.0
+
+    # 5. เขียนข้อมูลชุดใหม่บันทึกทับลงบนฟิลด์ตารางหลักออเดอร์เดิม
+    order.customer_name = request.customer_name
+    order.subtotal_price = subtotal_price
+    order.discount_price = discount_amount
+    order.grandtotal_price = grandtotal_price
+    order.notes = request.notes
+    order.payment_method = request.payment_method
+    order.items = order_items_to_add 
+
+    try:
+        db.commit()
+        db.refresh(order)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการบันทึกอัปเดตออเดอร์: {str(e)}")
+        
+    from fastapi.encoders import jsonable_encoder
+    return jsonable_encoder(order)
