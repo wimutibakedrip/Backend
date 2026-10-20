@@ -355,19 +355,21 @@ def get_product_buyers(
 
     date_filter = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at))
 
-    # ค้นหาข้อมูลออเดอร์ที่สำเร็จที่มีสินค้านี้ร่วมอยู่ด้วย
+    # ค้นหาข้อมูลออเดอร์ พร้อมทำการ SUM(quantity) และ GROUP BY customer_name
     buyers = db.query(
         models.OrderModel.customer_name,
-        models.OrderItemModel.quantity
+        func.sum(models.OrderItemModel.quantity).label("total_qty") # ใช้ func.sum คำนวณยอดรวมชิ้น
     ).join(models.OrderItemModel).join(models.ProductModel)\
      .filter(date_filter >= start_date)\
      .filter(date_filter <= end_date)\
      .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
      .filter(models.ProductModel.name == product_name)\
-     .order_by(models.OrderModel.customer_name.desc()).all()
+     .group_by(models.OrderModel.customer_name)\
+     .order_by(func.sum(models.OrderItemModel.quantity).desc()).all() 
 
-    # แปลงผลลัพธ์เป็นโครงสร้าง Array Object ส่งกลับไปให้ React
-    return [{"customer_name": b.customer_name or "ไม่ระบุชื่อ/หน้าร้าน", "qty": int(b.quantity)} for b in buyers]
+    # แปลงผลลัพธ์เป็นโครงสร้าง Array Object ส่งกลับไปให้ React (เปลี่ยนจาก b.quantity เป็น b.total_qty ตามคีย์ใหม่)
+    return [{"customer_name": b.customer_name or "ไม่ระบุชื่อ/หน้าร้าน", "qty": int(b.total_qty)} for b in buyers]
+
 
 # ---------------------------------------------------------------------------------------------------------------
 # API สำหรับอัปเดตแก้ไขรายการออเดอร์เดิมจากตะกร้า
