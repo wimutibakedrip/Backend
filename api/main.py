@@ -325,7 +325,8 @@ def get_sales_summary(selected_date: Optional[str] = Query(None, description="YY
         status_str = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
         status_distribution[status_str] = count
 
-    rec_limit = 10
+    # เลือก 15 top รายการล่าสุด -------------------------------------------
+    rec_limit = 15
     top_items = db.query(models.OrderItemModel.product_id, func.sum(models.OrderItemModel.quantity).label("total_qty")).join(models.OrderModel).filter(date_filter).filter(models.OrderModel.status == models.OrderStatus.COMPLETED).group_by(models.OrderItemModel.product_id).order_by(func.sum(models.OrderItemModel.quantity).desc()).limit(rec_limit).all()
      
     top_products_list = []
