@@ -302,11 +302,17 @@ def update_order_status(order_id: int, request: OrderStatusUpdateRequest, db: Se
 @app.get("/api/sales/summary")
 def get_sales_summary(selected_date: Optional[str] = Query(None, description="YYYY-MM-DD"), db: Session = Depends(get_db)):
     if selected_date:
-        target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
     else:
-        target_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+        end_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
 
-    date_filter = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == func.date(func.timezone('Asia/Bangkok', target_date))
+    start_date = end_date - datetime.timedelta(days=6)
+    local_order_date = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at))
+    date_filter = and_(
+                        local_order_date >= start_date,
+                        local_order_date <= end_date)
+                        
+    #date_filter = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == func.date(func.timezone('Asia/Bangkok', target_date))
 
     total_revenue = db.query(func.sum(models.OrderModel.grandtotal_price)).filter(date_filter).filter(models.OrderModel.status == models.OrderStatus.COMPLETED).scalar() or 0.0
     total_cash = db.query(func.sum(models.OrderModel.grandtotal_price)).filter(date_filter).filter(models.OrderModel.status == models.OrderStatus.COMPLETED).filter(models.OrderModel.payment_method == models.OrderPayment.CASH).scalar() or 0.0 
