@@ -364,7 +364,7 @@ def get_product_buyers(
      .filter(date_filter <= end_date)\
      .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
      .filter(models.ProductModel.name == product_name)\
-     .all()
+     .order_by(models.OrderModel.customer_name.desc()).all()
 
     # แปลงผลลัพธ์เป็นโครงสร้าง Array Object ส่งกลับไปให้ React
     return [{"customer_name": b.customer_name or "ไม่ระบุชื่อ/หน้าร้าน", "qty": int(b.quantity)} for b in buyers]
