@@ -339,6 +339,37 @@ def get_sales_summary(selected_date: Optional[str] = Query(None, description="YY
         "status_distribution": status_distribution, "top_products": top_products_list
     }
 
+# API สำหรับฝั่ง ADMIN: รายงานยอดขายรวมและสินค้าขายดี แสดงรายละเอียดลูกค้า
+@app.get("/api/sales/product-buyers")
+def get_product_buyers(
+    product_name: str = Query(..., description="ชื่อสินค้าที่ต้องการฟิลเตอร์"),
+    selected_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    db: Session = Depends(get_db)
+):
+    # คำนวณช่วงเวลาแบบ 7 วันย้อนหลังให้สอดคล้องกับหน้าคิวและรายงาน
+    if selected_date:
+        end_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+    else:
+        end_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+    start_date = end_date - datetime.timedelta(days=6)
+
+    date_filter = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at))
+
+    # ค้นหาข้อมูลออเดอร์ที่สำเร็จที่มีสินค้านี้ร่วมอยู่ด้วย
+    buyers = db.query(
+        models.OrderModel.customer_name,
+        models.OrderItemModel.quantity
+    ).join(models.OrderItemModel).join(models.ProductModel)\
+     .filter(date_filter >= start_date)\
+     .filter(date_filter <= end_date)\
+     .filter(models.OrderModel.status == models.OrderStatus.COMPLETED)\
+     .filter(models.ProductModel.name == product_name)\
+     .all()
+
+    # แปลงผลลัพธ์เป็นโครงสร้าง Array Object ส่งกลับไปให้ React
+    return [{"customer_name": b.customer_name or "ไม่ระบุชื่อ/หน้าร้าน", "qty": int(b.quantity)} for b in buyers]
+
+# ---------------------------------------------------------------------------------------------------------------
 # API สำหรับอัปเดตแก้ไขรายการออเดอร์เดิมจากตะกร้า
 @app.put("/api/orders/{order_id}")
 def update_existing_order(order_id: int, request: OrderCreateRequest, db: Session = Depends(get_db)):
