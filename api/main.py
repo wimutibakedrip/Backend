@@ -324,8 +324,9 @@ def get_sales_summary(selected_date: Optional[str] = Query(None, description="YY
     for status_enum, count in status_counts:
         status_str = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
         status_distribution[status_str] = count
-    
-    top_items = db.query(models.OrderItemModel.product_id, func.sum(models.OrderItemModel.quantity).label("total_qty")).join(models.OrderModel).filter(date_filter).filter(models.OrderModel.status == models.OrderStatus.COMPLETED).group_by(models.OrderItemModel.product_id).order_by(func.sum(models.OrderItemModel.quantity).desc()).limit(5).all()
+
+    rec_limit = 10
+    top_items = db.query(models.OrderItemModel.product_id, func.sum(models.OrderItemModel.quantity).label("total_qty")).join(models.OrderModel).filter(date_filter).filter(models.OrderModel.status == models.OrderStatus.COMPLETED).group_by(models.OrderItemModel.product_id).order_by(func.sum(models.OrderItemModel.quantity).desc()).limit(rec_limit).all()
      
     top_products_list = []
     for item in top_items:
