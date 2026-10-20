@@ -235,7 +235,7 @@ def get_all_orders(selected_date: Optional[str] = Query(None, description="YYYY-
     else:
         end_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
 
-    start_date = end_date - datetime.timedelta(days=7)
+    start_date = end_date - datetime.timedelta(days=6)
     local_order_date = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at))
 
     orders = db.query(models.OrderModel)\
