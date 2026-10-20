@@ -15,6 +15,7 @@ import shutil
 from . import models
 from .database import SessionLocal, engine, get_db
 from sqlalchemy.orm import joinedload
+from sqlalchemy import and_
 
 # สร้างตารางข้อมูลใน PostgreSQL ทันทีที่เปิด Server
 models.Base.metadata.create_all(bind=engine)
@@ -230,13 +231,18 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
 @app.get("/api/orders")
 def get_all_orders(selected_date: Optional[str] = Query(None, description="YYYY-MM-DD"), db: Session = Depends(get_db)):
     if selected_date:
-        target_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
     else:
-        target_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+        end_date = datetime.datetime.now(ZoneInfo("Asia/Bangkok")).date()
+
+    start_date = end_date - datetime.timedelta(days=7)
+    local_order_date = func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at))
 
     orders = db.query(models.OrderModel)\
                 .options(joinedload(models.OrderModel.items).joinedload(models.OrderItemModel.product))\
-                .filter(func.date(func.timezone('Asia/Bangkok', models.OrderModel.created_at)) == target_date)\
+                .filter(and_(
+                        local_order_date >= start_date,
+                        local_order_date <= end_date))\
                 .filter(models.OrderModel.status != models.OrderStatus.CANCELLED)\
                 .order_by(models.OrderModel.created_at.desc()).all()
                
